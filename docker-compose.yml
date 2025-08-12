@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: kib_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kib_user
+      POSTGRES_PASSWORD: kib_password
+      POSTGRES_DB: kib_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - kib_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kib_user -d kib_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: kib_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - kib_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kib_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: kib_user
+      DATABASE_PASSWORD: kib_password
+      DATABASE_NAME: kib_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_here_change_in_production}
+      JWT_EXPIRATION: 3600s
+      TMDB_API_KEY: ${TMDB_API_KEY:-your_tmdb_api_key_here}
+      TMDB_BASE_URL: https://api.themoviedb.org/3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kib_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  kib_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
