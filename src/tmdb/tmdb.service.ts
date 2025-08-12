@@ -1,30 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import {
-  Observable,
-  from,
-  of,
-  throwError,
-  timer,
-  forkJoin,
-  EMPTY,
-} from 'rxjs';
+import { Observable, from, of, throwError, timer, EMPTY, forkJoin } from 'rxjs';
 import {
   map,
   catchError,
   retry,
   tap,
-  mergeMap,
   concatMap,
   delay,
-  retryWhen,
   scan,
   filter,
   take,
   expand,
   reduce,
-  switchMap,
 } from 'rxjs/operators';
 import { AxiosResponse } from 'axios';
 
@@ -78,7 +67,9 @@ export class TmdbService {
     private readonly configService: ConfigService,
   ) {
     this.apiKey = this.configService.get<string>('tmdb.apiKey') || '';
-    this.baseUrl = this.configService.get<string>('tmdb.baseUrl') || 'https://api.themoviedb.org/3';
+    this.baseUrl =
+      this.configService.get<string>('tmdb.baseUrl') ||
+      'https://api.themoviedb.org/3';
   }
 
   /**
@@ -93,7 +84,9 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map(
+          (response: AxiosResponse<TmdbResponse<TmdbMovie>>) => response.data,
+        ),
         tap((data) =>
           this.logger.log(`Fetched ${data.results.length} popular movies`),
         ),
@@ -104,7 +97,7 @@ export class TmdbService {
             return timer(1000 * retryCount);
           },
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error('Error fetching popular movies', error);
           return throwError(() => error);
         }),
@@ -123,7 +116,9 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map(
+          (response: AxiosResponse<TmdbResponse<TmdbMovie>>) => response.data,
+        ),
         tap((data) =>
           this.logger.log(`Fetched ${data.results.length} top-rated movies`),
         ),
@@ -131,7 +126,7 @@ export class TmdbService {
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error('Error fetching top-rated movies', error);
           return throwError(() => error);
         }),
@@ -141,9 +136,7 @@ export class TmdbService {
   /**
    * Fetch now playing movies
    */
-  getNowPlayingMovies$(
-    page: number = 1,
-  ): Observable<TmdbResponse<TmdbMovie>> {
+  getNowPlayingMovies$(page: number = 1): Observable<TmdbResponse<TmdbMovie>> {
     return this.httpService
       .get<TmdbResponse<TmdbMovie>>(`${this.baseUrl}/movie/now_playing`, {
         params: {
@@ -152,17 +145,17 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map(
+          (response: AxiosResponse<TmdbResponse<TmdbMovie>>) => response.data,
+        ),
         tap((data) =>
-          this.logger.log(
-            `Fetched ${data.results.length} now playing movies`,
-          ),
+          this.logger.log(`Fetched ${data.results.length} now playing movies`),
         ),
         retry({
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error('Error fetching now playing movies', error);
           return throwError(() => error);
         }),
@@ -181,7 +174,9 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map(
+          (response: AxiosResponse<TmdbResponse<TmdbMovie>>) => response.data,
+        ),
         tap((data) =>
           this.logger.log(`Fetched ${data.results.length} upcoming movies`),
         ),
@@ -189,7 +184,7 @@ export class TmdbService {
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error('Error fetching upcoming movies', error);
           return throwError(() => error);
         }),
@@ -207,7 +202,7 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map((response: AxiosResponse<TmdbMovieDetails>) => response.data),
         tap((movie) =>
           this.logger.log(`Fetched details for movie: ${movie.title}`),
         ),
@@ -215,7 +210,7 @@ export class TmdbService {
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error(`Error fetching movie ${movieId} details`, error);
           return throwError(() => error);
         }),
@@ -238,7 +233,9 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map(
+          (response: AxiosResponse<TmdbResponse<TmdbMovie>>) => response.data,
+        ),
         tap((data) =>
           this.logger.log(
             `Found ${data.total_results} movies for query: ${query}`,
@@ -248,8 +245,11 @@ export class TmdbService {
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
-          this.logger.error(`Error searching movies for query: ${query}`, error);
+        catchError((error: unknown) => {
+          this.logger.error(
+            `Error searching movies for query: ${query}`,
+            error,
+          );
           return throwError(() => error);
         }),
       );
@@ -258,7 +258,9 @@ export class TmdbService {
   /**
    * Discover movies with filters
    */
-  discoverMovies$(params: any): Observable<TmdbResponse<TmdbMovie>> {
+  discoverMovies$(
+    params: Record<string, unknown>,
+  ): Observable<TmdbResponse<TmdbMovie>> {
     return this.httpService
       .get<TmdbResponse<TmdbMovie>>(`${this.baseUrl}/discover/movie`, {
         params: {
@@ -267,7 +269,9 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data),
+        map(
+          (response: AxiosResponse<TmdbResponse<TmdbMovie>>) => response.data,
+        ),
         tap((data) =>
           this.logger.log(`Discovered ${data.results.length} movies`),
         ),
@@ -275,7 +279,7 @@ export class TmdbService {
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error('Error discovering movies', error);
           return throwError(() => error);
         }),
@@ -293,13 +297,16 @@ export class TmdbService {
         },
       })
       .pipe(
-        map((response: AxiosResponse) => response.data.genres),
+        map(
+          (response: AxiosResponse<{ genres: TmdbGenre[] }>) =>
+            response.data.genres,
+        ),
         tap((genres) => this.logger.log(`Fetched ${genres.length} genres`)),
         retry({
           count: 3,
           delay: (error, retryCount) => timer(1000 * retryCount),
         }),
-        catchError((error) => {
+        catchError((error: unknown) => {
           this.logger.error('Error fetching genres', error);
           return throwError(() => error);
         }),
@@ -318,14 +325,14 @@ export class TmdbService {
       expand((page) =>
         page <= maxPages
           ? fetchFn(page).pipe(
-              map((response) => page + 1),
+              map(() => page + 1),
               catchError(() => EMPTY),
             )
           : EMPTY,
       ),
       take(maxPages),
       concatMap((page) => fetchFn(page)),
-      map((response) => response.results),
+      map((pageResponse) => pageResponse.results),
       reduce((acc, results) => [...acc, ...results], [] as T[]),
     );
   }
@@ -333,9 +340,7 @@ export class TmdbService {
   /**
    * Fetch multiple movie categories in parallel
    */
-  fetchMultipleCategories$(
-    pages: number = 1,
-  ): Observable<{
+  fetchMultipleCategories$(pages: number = 1): Observable<{
     popular: TmdbMovie[];
     topRated: TmdbMovie[];
     nowPlaying: TmdbMovie[];
@@ -383,7 +388,7 @@ export class TmdbService {
       concatMap((id) =>
         this.getMovieDetails$(id).pipe(
           delay(delayMs), // Rate limiting
-          catchError((error) => {
+          catchError((error: unknown) => {
             this.logger.error(`Failed to fetch movie ${id}`, error);
             return of(null);
           }),

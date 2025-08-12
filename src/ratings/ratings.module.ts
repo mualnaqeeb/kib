@@ -8,10 +8,7 @@ import { User } from '../entities/user.entity';
 import { MoviesModule } from '../movies/movies.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Rating, Movie, User]),
-    MoviesModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Rating, Movie, User]), MoviesModule],
   controllers: [RatingsController],
   providers: [RatingsService],
   exports: [RatingsService],

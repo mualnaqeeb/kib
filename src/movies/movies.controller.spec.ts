@@ -8,7 +8,6 @@ import { NotFoundException } from '@nestjs/common';
 
 describe('MoviesController', () => {
   let controller: MoviesController;
-  let service: MoviesService;
 
   const mockMovie = {
     id: 1,
@@ -99,10 +98,14 @@ describe('MoviesController', () => {
       controller.create(createMovieDto).subscribe({
         next: (result) => {
           expect(result).toEqual(mockMovie);
-          expect(mockMoviesService.create$).toHaveBeenCalledWith(createMovieDto);
+          expect(mockMoviesService.create$).toHaveBeenCalledWith(
+            createMovieDto,
+          );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -122,7 +125,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.findAll$).toHaveBeenCalledWith(query);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -144,7 +149,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.findAll$).toHaveBeenCalledWith(query);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -159,7 +166,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.getTrending$).toHaveBeenCalledWith(10);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -174,7 +183,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.getTopRated$).toHaveBeenCalledWith(10);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -189,7 +200,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.search$).toHaveBeenCalledWith('Test', 1, 20);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -201,10 +214,16 @@ describe('MoviesController', () => {
       controller.findByGenre(28, 1, 20).subscribe({
         next: (result) => {
           expect(result).toEqual(mockPaginatedResponse);
-          expect(mockMoviesService.findByGenre$).toHaveBeenCalledWith(28, 1, 20);
+          expect(mockMoviesService.findByGenre$).toHaveBeenCalledWith(
+            28,
+            1,
+            20,
+          );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -219,7 +238,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.findByTmdbId$).toHaveBeenCalledWith(123);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -234,7 +255,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.syncFromTmdb$).toHaveBeenCalledWith(123);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -251,10 +274,14 @@ describe('MoviesController', () => {
       controller.batchCreate(createMoviesDto).subscribe({
         next: (result) => {
           expect(result).toEqual([mockMovie]);
-          expect(mockMoviesService.batchCreate$).toHaveBeenCalledWith(createMoviesDto);
+          expect(mockMoviesService.batchCreate$).toHaveBeenCalledWith(
+            createMoviesDto,
+          );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -269,7 +296,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.findOne$).toHaveBeenCalledWith(1);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -279,8 +308,10 @@ describe('MoviesController', () => {
       );
 
       controller.findOne(999).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown NotFoundException');
+        },
+        error: (error: Error) => {
           expect(error).toBeInstanceOf(NotFoundException);
           done();
         },
@@ -301,10 +332,15 @@ describe('MoviesController', () => {
       controller.update(1, updateMovieDto).subscribe({
         next: (result) => {
           expect(result.title).toBe('Updated Title');
-          expect(mockMoviesService.update$).toHaveBeenCalledWith(1, updateMovieDto);
+          expect(mockMoviesService.update$).toHaveBeenCalledWith(
+            1,
+            updateMovieDto,
+          );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -318,7 +354,9 @@ describe('MoviesController', () => {
           expect(mockMoviesService.remove$).toHaveBeenCalledWith(1);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });

@@ -1,15 +1,15 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Rating } from '../entities/rating.entity';
 import { Movie } from '../entities/movie.entity';
 import { User } from '../entities/user.entity';
-import { CreateRatingDto, UpdateRatingDto, RatingStatsDto, UserRatingDto } from './dto';
+import {
+  CreateRatingDto,
+  UpdateRatingDto,
+  RatingStatsDto,
+  UserRatingDto,
+} from './dto';
 import { Observable, from, of, throwError, forkJoin } from 'rxjs';
 import {
   map,
@@ -18,7 +18,6 @@ import {
   catchError,
   mergeMap,
   toArray,
-  reduce,
 } from 'rxjs/operators';
 import { MoviesService } from '../movies/movies.service';
 
@@ -68,7 +67,8 @@ export class RatingsService {
         if (existingRating) {
           // Update existing rating
           existingRating.rating = createRatingDto.rating;
-          existingRating.review = createRatingDto.review || existingRating.review;
+          existingRating.review =
+            createRatingDto.review || existingRating.review;
           return from(this.ratingRepository.save(existingRating));
         } else {
           // Create new rating
@@ -84,16 +84,16 @@ export class RatingsService {
       }),
       // Update movie's user rating statistics
       switchMap((rating) =>
-        this.moviesService.updateRatingStatistics$(movieId).pipe(
-          map(() => rating),
-        ),
+        this.moviesService
+          .updateRatingStatistics$(movieId)
+          .pipe(map(() => rating)),
       ),
       tap((rating) =>
         this.logger.log(
           `${rating.id ? 'Updated' : 'Created'} rating for movie ${movieId} by user ${userId}: ${rating.rating}`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(
           `Error creating/updating rating for movie ${movieId} by user ${userId}`,
           error,
@@ -119,11 +119,8 @@ export class RatingsService {
           `Fetched ${ratings.length} ratings for movie ${movieId}`,
         ),
       ),
-      catchError((error) => {
-        this.logger.error(
-          `Error fetching ratings for movie ${movieId}`,
-          error,
-        );
+      catchError((error: Error) => {
+        this.logger.error(`Error fetching ratings for movie ${movieId}`, error);
         return throwError(() => error);
       }),
     );
@@ -154,7 +151,7 @@ export class RatingsService {
       tap((ratings) =>
         this.logger.log(`Fetched ${ratings.length} ratings by user ${userId}`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error fetching ratings by user ${userId}`, error);
         return throwError(() => error);
       }),
@@ -182,7 +179,7 @@ export class RatingsService {
       tap((rating) =>
         this.logger.log(`Fetched rating ${id}: ${rating.rating}`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error fetching rating ${id}`, error);
         return throwError(() => error);
       }),
@@ -208,7 +205,7 @@ export class RatingsService {
           );
         }
       }),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(
           `Error fetching user ${userId}'s rating for movie ${movieId}`,
           error,
@@ -245,14 +242,14 @@ export class RatingsService {
       }),
       // Update movie's user rating statistics
       switchMap((rating) =>
-        this.moviesService.updateRatingStatistics$(rating.movieId).pipe(
-          map(() => rating),
-        ),
+        this.moviesService
+          .updateRatingStatistics$(rating.movieId)
+          .pipe(map(() => rating)),
       ),
       tap((rating) =>
         this.logger.log(`Updated rating ${id}: ${rating.rating}`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error updating rating ${id}`, error);
         return throwError(() => error);
       }),
@@ -274,14 +271,12 @@ export class RatingsService {
         const movieId = rating.movieId;
         return from(this.ratingRepository.remove(rating)).pipe(
           // Update movie's user rating statistics after deletion
-          switchMap(() =>
-            this.moviesService.updateRatingStatistics$(movieId),
-          ),
+          switchMap(() => this.moviesService.updateRatingStatistics$(movieId)),
           map(() => void 0),
         );
       }),
       tap(() => this.logger.log(`Removed rating ${id}`)),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error removing rating ${id}`, error);
         return throwError(() => error);
       }),
@@ -307,11 +302,14 @@ export class RatingsService {
         const average = sum / ratings.length;
 
         // Calculate distribution
-        const distribution = ratings.reduce((acc, rating) => {
-          const key = Math.floor(Number(rating.rating)).toString();
-          acc[key] = (acc[key] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        const distribution = ratings.reduce(
+          (acc, rating) => {
+            const key = Math.floor(Number(rating.rating)).toString();
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
 
         return {
           average: Math.round(average * 10) / 10,
@@ -324,7 +322,7 @@ export class RatingsService {
           `Movie ${movieId} rating stats: ${stats.average} (${stats.count} ratings)`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(
           `Error calculating rating stats for movie ${movieId}`,
           error,
@@ -350,7 +348,7 @@ export class RatingsService {
       tap((movies) =>
         this.logger.log(`Fetched ${movies.length} top-rated movies`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error fetching top-rated movies', error);
         return throwError(() => error);
       }),
@@ -368,11 +366,8 @@ export class RatingsService {
       mergeMap(
         ({ movieId, rating, review }) =>
           this.createOrUpdate$(userId, movieId, { rating, review }).pipe(
-            catchError((error) => {
-              this.logger.error(
-                `Failed to rate movie ${movieId}`,
-                error,
-              );
+            catchError((error: Error) => {
+              this.logger.error(`Failed to rate movie ${movieId}`, error);
               return of(null);
             }),
           ),
@@ -398,12 +393,10 @@ export class RatingsService {
         .select('AVG(rating.rating)', 'average')
         .getRawOne(),
     ).pipe(
-      map((result) => result?.average || 0),
+      map((result: { average: number } | null) => result?.average || 0),
       map((average) => Math.round(average * 10) / 10),
-      tap((average) =>
-        this.logger.log(`Overall average rating: ${average}`),
-      ),
-      catchError((error) => {
+      tap((average) => this.logger.log(`Overall average rating: ${average}`)),
+      catchError((error: Error) => {
         this.logger.error('Error calculating overall average rating', error);
         return of(0);
       }),

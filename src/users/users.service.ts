@@ -11,16 +11,8 @@ import { User } from '../entities/user.entity';
 import { Movie } from '../entities/movie.entity';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { Observable, from, of, throwError, forkJoin } from 'rxjs';
-import {
-  map,
-  switchMap,
-  tap,
-  catchError,
-  mergeMap,
-  toArray,
-} from 'rxjs/operators';
+import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 
 export interface JwtPayload {
   sub: number;
@@ -79,7 +71,7 @@ export class UsersService {
       tap((user) =>
         this.logger.log(`Created new user: ${user.username} (${user.email})`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error creating user', error);
         return throwError(() => error);
       }),
@@ -92,11 +84,19 @@ export class UsersService {
   findAll$(): Observable<User[]> {
     return from(
       this.userRepository.find({
-        select: ['id', 'username', 'email', 'firstName', 'lastName', 'isActive', 'createdAt'],
+        select: [
+          'id',
+          'username',
+          'email',
+          'firstName',
+          'lastName',
+          'isActive',
+          'createdAt',
+        ],
       }),
     ).pipe(
       tap((users) => this.logger.log(`Fetched ${users.length} users`)),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error fetching users', error);
         return throwError(() => error);
       }),
@@ -122,7 +122,7 @@ export class UsersService {
         return of(user);
       }),
       tap((user) => this.logger.log(`Fetched user: ${user.username}`)),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Error fetching user ${id}`, error);
         return throwError(() => error);
       }),
@@ -143,13 +143,11 @@ export class UsersService {
     ).pipe(
       switchMap((user) => {
         if (!user) {
-          return throwError(
-            () => new NotFoundException('User not found'),
-          );
+          return throwError(() => new NotFoundException('User not found'));
         }
         return of(user);
       }),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(
           `Error fetching user by username/email: ${usernameOrEmail}`,
           error,
@@ -168,10 +166,8 @@ export class UsersService {
         Object.assign(user, updateUserDto);
         return from(this.userRepository.save(user));
       }),
-      tap((user) =>
-        this.logger.log(`Updated user: ${user.username}`),
-      ),
-      catchError((error) => {
+      tap((user) => this.logger.log(`Updated user: ${user.username}`)),
+      catchError((error: unknown) => {
         this.logger.error(`Error updating user ${id}`, error);
         return throwError(() => error);
       }),
@@ -186,7 +182,7 @@ export class UsersService {
       switchMap((user) => from(this.userRepository.remove(user))),
       map(() => void 0),
       tap(() => this.logger.log(`Removed user with ID ${id}`)),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Error removing user ${id}`, error);
         return throwError(() => error);
       }),
@@ -211,9 +207,11 @@ export class UsersService {
       tap((user) =>
         this.logger.log(`User ${user.username} validated successfully`),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Error validating user ${username}`, error);
-        return throwError(() => new UnauthorizedException('Invalid credentials'));
+        return throwError(
+          () => new UnauthorizedException('Invalid credentials'),
+        );
       }),
     );
   }
@@ -230,19 +228,21 @@ export class UsersService {
           email: user.email,
         };
         const accessToken = this.jwtService.sign(payload);
-        
+
         // Remove password from response
-        const { password: _, ...userWithoutPassword } = user;
-        
+        const { password, ...userWithoutPassword } = user;
+        void password;
         return {
           user: userWithoutPassword as User,
           accessToken,
         };
       }),
       tap((response) =>
-        this.logger.log(`User ${response.user.username} logged in successfully`),
+        this.logger.log(
+          `User ${response.user.username} logged in successfully`,
+        ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Login failed for ${username}`, error);
         return throwError(() => error);
       }),
@@ -281,7 +281,7 @@ export class UsersService {
           `Added movie ${movieId} to ${user.username}'s watchlist`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(
           `Error adding movie ${movieId} to user ${userId}'s watchlist`,
           error,
@@ -308,7 +308,7 @@ export class UsersService {
           `Removed movie ${movieId} from ${user.username}'s watchlist`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(
           `Error removing movie ${movieId} from user ${userId}'s watchlist`,
           error,
@@ -329,7 +329,7 @@ export class UsersService {
           `Fetched ${watchlist.length} movies from user ${userId}'s watchlist`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Error fetching watchlist for user ${userId}`, error);
         return throwError(() => error);
       }),
@@ -368,7 +368,7 @@ export class UsersService {
           `Added movie ${movieId} to ${user.username}'s favorites`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(
           `Error adding movie ${movieId} to user ${userId}'s favorites`,
           error,
@@ -395,7 +395,7 @@ export class UsersService {
           `Removed movie ${movieId} from ${user.username}'s favorites`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(
           `Error removing movie ${movieId} from user ${userId}'s favorites`,
           error,
@@ -416,7 +416,7 @@ export class UsersService {
           `Fetched ${favorites.length} movies from user ${userId}'s favorites`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Error fetching favorites for user ${userId}`, error);
         return throwError(() => error);
       }),
@@ -448,7 +448,7 @@ export class UsersService {
       tap((user) =>
         this.logger.log(`Password changed for user: ${user.username}`),
       ),
-      catchError((error) => {
+      catchError((error: unknown) => {
         this.logger.error(`Error changing password for user ${userId}`, error);
         return throwError(() => error);
       }),

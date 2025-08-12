@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder, ILike, Between, In, DeepPartial } from 'typeorm';
+import {
+  Repository,
+  SelectQueryBuilder,
+  ILike,
+  Between,
+  DeepPartial,
+} from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import {
   CreateMovieDto,
@@ -8,13 +14,7 @@ import {
   QueryMovieDto,
   PaginatedResponseDto,
 } from './dto';
-import {
-  Observable,
-  from,
-  of,
-  throwError,
-  forkJoin,
-} from 'rxjs';
+import { Observable, from, of, throwError } from 'rxjs';
 import {
   map,
   switchMap,
@@ -48,7 +48,10 @@ export class MoviesService {
       switchMap((existingMovie) => {
         if (existingMovie) {
           return throwError(
-            () => new Error(`Movie with TMDB ID ${createMovieDto.tmdbId} already exists`),
+            () =>
+              new Error(
+                `Movie with TMDB ID ${createMovieDto.tmdbId} already exists`,
+              ),
           );
         }
         const movie = this.movieRepository.create({
@@ -60,7 +63,7 @@ export class MoviesService {
         return from(this.movieRepository.save(movie));
       }),
       tap((movie) => this.logger.log(`Created movie: ${movie.title}`)),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error creating movie', error);
         return throwError(() => error);
       }),
@@ -71,24 +74,9 @@ export class MoviesService {
    * Find all movies with pagination and filters using functional approach
    */
   findAll$(query: QueryMovieDto): Observable<PaginatedResponseDto<Movie>> {
-    const {
-      page,
-      limit,
-      search,
-      genreIds,
-      yearFrom,
-      yearTo,
-      minRating,
-      maxRating,
-      sortBy,
-      sortOrder,
-      language,
-      includeAdult,
-    } = query;
+    const { page, limit } = query;
 
-    return from(
-      this.createQueryBuilder(query).getManyAndCount(),
-    ).pipe(
+    return from(this.createQueryBuilder(query).getManyAndCount()).pipe(
       map(([movies, total]) => {
         return new PaginatedResponseDto(movies, total, page || 1, limit || 10);
       }),
@@ -97,7 +85,7 @@ export class MoviesService {
           `Fetched ${result.data.length} movies (page ${page}/${result.meta.totalPages})`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error fetching movies', error);
         return throwError(() => error);
       }),
@@ -123,7 +111,7 @@ export class MoviesService {
         return of(movie);
       }),
       tap((movie) => this.logger.log(`Fetched movie: ${movie.title}`)),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error fetching movie ${id}`, error);
         return throwError(() => error);
       }),
@@ -150,7 +138,7 @@ export class MoviesService {
       tap((movie) =>
         this.logger.log(`Fetched movie by TMDB ID: ${movie.title}`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error fetching movie by TMDB ID ${tmdbId}`, error);
         return throwError(() => error);
       }),
@@ -173,7 +161,7 @@ export class MoviesService {
         return from(this.movieRepository.save(updatedMovie));
       }),
       tap((movie) => this.logger.log(`Updated movie: ${movie.title}`)),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error updating movie ${id}`, error);
         return throwError(() => error);
       }),
@@ -188,7 +176,7 @@ export class MoviesService {
       switchMap((movie) => from(this.movieRepository.remove(movie))),
       map(() => void 0),
       tap(() => this.logger.log(`Removed movie with ID ${id}`)),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error removing movie ${id}`, error);
         return throwError(() => error);
       }),
@@ -198,7 +186,11 @@ export class MoviesService {
   /**
    * Search movies by title
    */
-  search$(query: string, page: number = 1, limit: number = 20): Observable<PaginatedResponseDto<Movie>> {
+  search$(
+    query: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Observable<PaginatedResponseDto<Movie>> {
     return from(
       this.movieRepository.findAndCount({
         where: { title: ILike(`%${query}%`) },
@@ -207,13 +199,16 @@ export class MoviesService {
         order: { popularity: 'DESC' },
       }),
     ).pipe(
-      map(([movies, total]) => new PaginatedResponseDto(movies, total, page, limit)),
+      map(
+        ([movies, total]) =>
+          new PaginatedResponseDto(movies, total, page, limit),
+      ),
       tap((result) =>
         this.logger.log(
           `Found ${result.data.length} movies matching "${query}"`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error searching movies for "${query}"`, error);
         return throwError(() => error);
       }),
@@ -237,13 +232,16 @@ export class MoviesService {
         .take(limit)
         .getManyAndCount(),
     ).pipe(
-      map(([movies, total]) => new PaginatedResponseDto(movies, total, page, limit)),
+      map(
+        ([movies, total]) =>
+          new PaginatedResponseDto(movies, total, page, limit),
+      ),
       tap((result) =>
         this.logger.log(
           `Found ${result.data.length} movies for genre ${genreId}`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error fetching movies by genre ${genreId}`, error);
         return throwError(() => error);
       }),
@@ -264,7 +262,7 @@ export class MoviesService {
       tap((movies) =>
         this.logger.log(`Fetched ${movies.length} top-rated movies`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error fetching top-rated movies', error);
         return throwError(() => error);
       }),
@@ -284,7 +282,7 @@ export class MoviesService {
       tap((movies) =>
         this.logger.log(`Fetched ${movies.length} trending movies`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error('Error fetching trending movies', error);
         return throwError(() => error);
       }),
@@ -320,14 +318,10 @@ export class MoviesService {
             },
             ['tmdbId'],
           ),
-        ).pipe(
-          switchMap(() => this.findByTmdbId$(tmdbId)),
-        );
+        ).pipe(switchMap(() => this.findByTmdbId$(tmdbId)));
       }),
-      tap((movie) =>
-        this.logger.log(`Synced movie from TMDB: ${movie.title}`),
-      ),
-      catchError((error) => {
+      tap((movie) => this.logger.log(`Synced movie from TMDB: ${movie.title}`)),
+      catchError((error: Error) => {
         this.logger.error(`Error syncing movie from TMDB ${tmdbId}`, error);
         return throwError(() => error);
       }),
@@ -342,9 +336,7 @@ export class MoviesService {
       mergeMap((dto) => this.create$(dto).pipe(catchError(() => of(null))), 5), // Concurrent limit of 5
       filter((movie): movie is Movie => movie !== null),
       toArray(),
-      tap((movies) =>
-        this.logger.log(`Batch created ${movies.length} movies`),
-      ),
+      tap((movies) => this.logger.log(`Batch created ${movies.length} movies`)),
     );
   }
 
@@ -362,25 +354,29 @@ export class MoviesService {
         .addSelect('COUNT(rating.id)', 'ratingCount')
         .getRawOne(),
     ).pipe(
-      switchMap((stats) => {
-        if (!stats) {
-          return throwError(
-            () => new NotFoundException(`Movie with ID ${movieId} not found`),
-          );
-        }
-        return from(
-          this.movieRepository.update(movieId, {
-            userRatingAverage: stats.avgRating || 0,
-            userRatingCount: stats.ratingCount || 0,
-          }),
-        ).pipe(switchMap(() => this.findOne$(movieId)));
-      }),
+      switchMap(
+        (
+          stats: { id: number; avgRating: number; ratingCount: number } | null,
+        ) => {
+          if (!stats) {
+            return throwError(
+              () => new NotFoundException(`Movie with ID ${movieId} not found`),
+            );
+          }
+          return from(
+            this.movieRepository.update(movieId, {
+              userRatingAverage: stats.avgRating || 0,
+              userRatingCount: stats.ratingCount || 0,
+            }),
+          ).pipe(switchMap(() => this.findOne$(movieId)));
+        },
+      ),
       tap((movie) =>
         this.logger.log(
           `Updated rating statistics for movie ${movie.title}: ${movie.userRatingAverage} (${movie.userRatingCount} ratings)`,
         ),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(
           `Error updating rating statistics for movie ${movieId}`,
           error,
@@ -443,9 +439,12 @@ export class MoviesService {
 
     // Search filter
     if (search) {
-      qb.andWhere('(movie.title ILIKE :search OR movie.originalTitle ILIKE :search)', {
-        search: `%${search}%`,
-      });
+      qb.andWhere(
+        '(movie.title ILIKE :search OR movie.originalTitle ILIKE :search)',
+        {
+          search: `%${search}%`,
+        },
+      );
     }
 
     // Genre filter
@@ -455,7 +454,9 @@ export class MoviesService {
 
     // Year range filter
     if (yearFrom || yearTo) {
-      const fromDate = yearFrom ? new Date(`${yearFrom}-01-01`) : new Date('1900-01-01');
+      const fromDate = yearFrom
+        ? new Date(`${yearFrom}-01-01`)
+        : new Date('1900-01-01');
       const toDate = yearTo ? new Date(`${yearTo}-12-31`) : new Date();
       qb.andWhere('movie.releaseDate BETWEEN :fromDate AND :toDate', {
         fromDate,

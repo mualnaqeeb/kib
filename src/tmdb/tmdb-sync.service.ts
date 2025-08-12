@@ -4,27 +4,16 @@ import { Repository } from 'typeorm';
 import { TmdbService, TmdbMovie, TmdbMovieDetails } from './tmdb.service';
 import { Movie } from '../entities/movie.entity';
 import { Genre } from '../entities/genre.entity';
-import {
-  Observable,
-  from,
-  of,
-  forkJoin,
-  timer,
-  EMPTY,
-  throwError,
-} from 'rxjs';
+import { Observable, from, of, throwError } from 'rxjs';
 import {
   map,
-  mergeMap,
   concatMap,
   tap,
   catchError,
   delay,
   filter,
-  take,
   toArray,
   switchMap,
-  retry,
 } from 'rxjs/operators';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
@@ -69,10 +58,8 @@ export class TmdbSyncService implements OnModuleInit {
           switchMap(() => from(this.genreRepository.find())),
         ),
       ),
-      tap((genres) =>
-        this.logger.log(`Synchronized ${genres.length} genres`),
-      ),
-      catchError((error) => {
+      tap((genres) => this.logger.log(`Synchronized ${genres.length} genres`)),
+      catchError((error: Error) => {
         this.logger.error('Error syncing genres', error);
         return of([]);
       }),
@@ -87,8 +74,12 @@ export class TmdbSyncService implements OnModuleInit {
       map((categories) => {
         // Combine and deduplicate movies
         const movieMap = new Map<number, TmdbMovie>();
-        [...categories.popular, ...categories.topRated, ...categories.nowPlaying, ...categories.upcoming]
-          .forEach((movie) => movieMap.set(movie.id, movie));
+        [
+          ...categories.popular,
+          ...categories.topRated,
+          ...categories.nowPlaying,
+          ...categories.upcoming,
+        ].forEach((movie) => movieMap.set(movie.id, movie));
         return Array.from(movieMap.values());
       }),
       switchMap((movies) =>
@@ -96,11 +87,8 @@ export class TmdbSyncService implements OnModuleInit {
           concatMap((tmdbMovie) =>
             this.saveMovie(tmdbMovie).pipe(
               delay(100), // Rate limiting
-              catchError((error) => {
-                this.logger.error(
-                  `Error saving movie ${tmdbMovie.id}`,
-                  error,
-                );
+              catchError((error: Error) => {
+                this.logger.error(`Error saving movie ${tmdbMovie.id}`, error);
                 return of(null);
               }),
             ),
@@ -165,15 +153,11 @@ export class TmdbSyncService implements OnModuleInit {
         } else {
           // Create new movie
           return from(
-            this.movieRepository.save(
-              this.movieRepository.create(movieData),
-            ),
+            this.movieRepository.save(this.movieRepository.create(movieData)),
           );
         }
       }),
-      tap((movie) =>
-        this.logger.debug(`Saved/Updated movie: ${movie.title}`),
-      ),
+      tap((movie) => this.logger.debug(`Saved/Updated movie: ${movie.title}`)),
     );
   }
 
@@ -189,7 +173,7 @@ export class TmdbSyncService implements OnModuleInit {
           concatMap((movie) =>
             this.saveMovie(movie).pipe(
               delay(100),
-              catchError((error) => {
+              catchError((error: Error) => {
                 this.logger.error(`Error syncing movie ${movie.id}`, error);
                 return of(null);
               }),
@@ -216,7 +200,7 @@ export class TmdbSyncService implements OnModuleInit {
       tap((movie) =>
         this.logger.log(`Synced detailed data for movie: ${movie.title}`),
       ),
-      catchError((error) => {
+      catchError((error: Error) => {
         this.logger.error(`Error syncing movie details ${movieId}`, error);
         return throwError(() => error);
       }),
@@ -236,9 +220,7 @@ export class TmdbSyncService implements OnModuleInit {
       ),
       filter((movie): movie is Movie => movie !== null),
       toArray(),
-      tap((movies) =>
-        this.logger.log(`Batch synced ${movies.length} movies`),
-      ),
+      tap((movies) => this.logger.log(`Batch synced ${movies.length} movies`)),
     );
   }
 }

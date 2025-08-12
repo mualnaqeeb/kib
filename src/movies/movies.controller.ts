@@ -8,7 +8,6 @@ import {
   Delete,
   Query,
   ParseIntPipe,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { MoviesService } from './movies.service';
@@ -22,7 +21,6 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
@@ -65,11 +63,23 @@ export class MoviesController {
   @ApiQuery({ name: 'yearTo', required: false, type: Number })
   @ApiQuery({ name: 'minRating', required: false, type: Number })
   @ApiQuery({ name: 'maxRating', required: false, type: Number })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['title', 'releaseDate', 'popularity', 'voteAverage', 'userRatingAverage'] })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: [
+      'title',
+      'releaseDate',
+      'popularity',
+      'voteAverage',
+      'userRatingAverage',
+    ],
+  })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
   @ApiQuery({ name: 'language', required: false, type: String })
   @ApiQuery({ name: 'includeAdult', required: false, type: Boolean })
-  findAll(@Query() query: QueryMovieDto): Observable<PaginatedResponseDto<Movie>> {
+  findAll(
+    @Query() query: QueryMovieDto,
+  ): Observable<PaginatedResponseDto<Movie>> {
     return this.moviesService.findAll$(query);
   }
 

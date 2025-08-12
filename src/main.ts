@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Get config service
   const configService = app.get(ConfigService);
   const port = configService.get<number>('port', 8080);
@@ -58,7 +58,7 @@ async function bootstrap() {
 
   // Start the application
   await app.listen(port);
-  
+
   console.log(`
   🚀 Application is running on: http://localhost:${port}
   📚 API Documentation available at: http://localhost:${port}/api
@@ -66,4 +66,4 @@ async function bootstrap() {
   `);
 }
 
-bootstrap();
+void bootstrap();

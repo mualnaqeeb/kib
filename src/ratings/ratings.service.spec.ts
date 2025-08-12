@@ -8,14 +8,10 @@ import { Movie } from '../entities/movie.entity';
 import { User } from '../entities/user.entity';
 import { MoviesService } from '../movies/movies.service';
 import { CreateRatingDto } from './dto';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 
 describe('RatingsService', () => {
   let service: RatingsService;
-  let ratingRepository: Repository<Rating>;
-  let movieRepository: Repository<Movie>;
-  let userRepository: Repository<User>;
-  let moviesService: MoviesService;
 
   const mockUser = {
     id: 1,
@@ -121,9 +117,7 @@ describe('RatingsService', () => {
     ratingRepository = module.get<Repository<Rating>>(
       getRepositoryToken(Rating),
     );
-    movieRepository = module.get<Repository<Movie>>(
-      getRepositoryToken(Movie),
-    );
+    movieRepository = module.get<Repository<Movie>>(getRepositoryToken(Movie));
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
     moviesService = module.get<MoviesService>(MoviesService);
 
@@ -153,10 +147,14 @@ describe('RatingsService', () => {
           expect(result).toEqual(mockRating);
           expect(mockRatingRepository.create).toHaveBeenCalled();
           expect(mockRatingRepository.save).toHaveBeenCalled();
-          expect(mockMoviesService.updateRatingStatistics$).toHaveBeenCalledWith(1);
+          expect(
+            mockMoviesService.updateRatingStatistics$,
+          ).toHaveBeenCalledWith(1);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -174,10 +172,14 @@ describe('RatingsService', () => {
         next: (result) => {
           expect(result.rating).toBe(8.5);
           expect(mockRatingRepository.save).toHaveBeenCalled();
-          expect(mockMoviesService.updateRatingStatistics$).toHaveBeenCalledWith(1);
+          expect(
+            mockMoviesService.updateRatingStatistics$,
+          ).toHaveBeenCalledWith(1);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -187,8 +189,10 @@ describe('RatingsService', () => {
       mockRatingRepository.findOne.mockResolvedValue(null);
 
       service.createOrUpdate$(1, 999, createRatingDto).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown NotFoundException');
+        },
+        error: (error: Error) => {
           expect(error).toBeInstanceOf(NotFoundException);
           expect(error.message).toContain('Movie');
           done();
@@ -202,8 +206,10 @@ describe('RatingsService', () => {
       mockRatingRepository.findOne.mockResolvedValue(null);
 
       service.createOrUpdate$(999, 1, createRatingDto).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown NotFoundException');
+        },
+        error: (error: Error) => {
           expect(error).toBeInstanceOf(NotFoundException);
           expect(error.message).toContain('User');
           done();
@@ -227,7 +233,9 @@ describe('RatingsService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -249,7 +257,9 @@ describe('RatingsService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -267,7 +277,9 @@ describe('RatingsService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -275,8 +287,10 @@ describe('RatingsService', () => {
       mockRatingRepository.findOne.mockResolvedValue(null);
 
       service.findOne$(999).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown NotFoundException');
+        },
+        error: (error: Error) => {
           expect(error).toBeInstanceOf(NotFoundException);
           done();
         },
@@ -296,7 +310,9 @@ describe('RatingsService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -308,7 +324,9 @@ describe('RatingsService', () => {
           expect(result).toBeNull();
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -329,7 +347,9 @@ describe('RatingsService', () => {
           expect(mockRatingRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -338,8 +358,10 @@ describe('RatingsService', () => {
       mockRatingRepository.findOne.mockResolvedValue(differentUserRating);
 
       service.update$(1, 1, { rating: 9.0 }).subscribe({
-        next: () => done.fail('Should have thrown error'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown error');
+        },
+        error: (error: Error) => {
           expect(error.message).toContain('only update your own ratings');
           done();
         },
@@ -356,10 +378,14 @@ describe('RatingsService', () => {
       service.remove$(1, 1).subscribe({
         next: () => {
           expect(mockRatingRepository.remove).toHaveBeenCalledWith(mockRating);
-          expect(mockMoviesService.updateRatingStatistics$).toHaveBeenCalledWith(1);
+          expect(
+            mockMoviesService.updateRatingStatistics$,
+          ).toHaveBeenCalledWith(1);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -368,8 +394,10 @@ describe('RatingsService', () => {
       mockRatingRepository.findOne.mockResolvedValue(differentUserRating);
 
       service.remove$(1, 1).subscribe({
-        next: () => done.fail('Should have thrown error'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown error');
+        },
+        error: (error: Error) => {
           expect(error.message).toContain('only delete your own ratings');
           done();
         },
@@ -394,7 +422,9 @@ describe('RatingsService', () => {
           expect(result.distribution).toBeDefined();
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -408,7 +438,9 @@ describe('RatingsService', () => {
           expect(result.distribution).toEqual({});
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -432,7 +464,9 @@ describe('RatingsService', () => {
           expect(mockQueryBuilder.limit).toHaveBeenCalledWith(5);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -456,7 +490,9 @@ describe('RatingsService', () => {
           expect(result).toHaveLength(2);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -475,7 +511,9 @@ describe('RatingsService', () => {
           expect(result).toBe(8.2);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -492,7 +530,9 @@ describe('RatingsService', () => {
           expect(result).toBe(0);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });

@@ -1,17 +1,22 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { SelectQueryBuilder } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { MoviesService } from './movies.service';
 import { Movie } from '../entities/movie.entity';
 import { TmdbService } from '../tmdb/tmdb.service';
-import { CreateMovieDto, QueryMovieDto, SortBy, SortOrder } from './dto';
-import { of, throwError } from 'rxjs';
+import {
+  CreateMovieDto,
+  QueryMovieDto,
+  SortBy,
+  SortOrder,
+  PaginatedResponseDto,
+} from './dto';
+import { of } from 'rxjs';
 
 describe('MoviesService', () => {
   let service: MoviesService;
-  let movieRepository: Repository<Movie>;
-  let tmdbService: TmdbService;
 
   const mockMovie: Movie = {
     id: 1,
@@ -25,7 +30,10 @@ describe('MoviesService', () => {
     voteCount: 1000,
     popularity: 100,
     genreIds: [28, 12],
-    genres: [{ id: 28, name: 'Action' }, { id: 12, name: 'Adventure' }],
+    genres: [
+      { id: 28, name: 'Action' },
+      { id: 12, name: 'Adventure' },
+    ],
     originalLanguage: 'en',
     originalTitle: 'Test Movie',
     adult: false,
@@ -71,8 +79,8 @@ describe('MoviesService', () => {
     }).compile();
 
     service = module.get<MoviesService>(MoviesService);
-    movieRepository = module.get<Repository<Movie>>(getRepositoryToken(Movie));
-    tmdbService = module.get<TmdbService>(TmdbService);
+    // movieRepository = module.get<Repository<Movie>>(getRepositoryToken(Movie));
+    // tmdbService = module.get<TmdbService>(TmdbService);
 
     // Reset all mocks
     jest.clearAllMocks();
@@ -96,7 +104,7 @@ describe('MoviesService', () => {
       mockMovieRepository.save.mockResolvedValue(mockMovie);
 
       service.create$(createMovieDto).subscribe({
-        next: (result) => {
+        next: (result: Movie) => {
           expect(result).toEqual(mockMovie);
           expect(mockMovieRepository.findOne).toHaveBeenCalledWith({
             where: { tmdbId: createMovieDto.tmdbId },
@@ -105,7 +113,9 @@ describe('MoviesService', () => {
           expect(mockMovieRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err: unknown) => {
+          done.fail(err instanceof Error ? err.message : String(err));
+        },
       });
     });
 
@@ -118,8 +128,10 @@ describe('MoviesService', () => {
       mockMovieRepository.findOne.mockResolvedValue(mockMovie);
 
       service.create$(createMovieDto).subscribe({
-        next: () => done.fail('Should have thrown an error'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown an error');
+        },
+        error: (error: Error) => {
           expect(error.message).toContain('already exists');
           done();
         },
@@ -147,14 +159,16 @@ describe('MoviesService', () => {
       mockMovieRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       service.findAll$(query).subscribe({
-        next: (result) => {
+        next: (result: PaginatedResponseDto<Movie>) => {
           expect(result.data).toEqual([mockMovie]);
           expect(result.meta.totalItems).toBe(1);
           expect(result.meta.page).toBe(1);
           expect(result.meta.limit).toBe(20);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -185,7 +199,9 @@ describe('MoviesService', () => {
           );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -195,7 +211,7 @@ describe('MoviesService', () => {
       mockMovieRepository.findOne.mockResolvedValue(mockMovie);
 
       service.findOne$(1).subscribe({
-        next: (result) => {
+        next: (result: Movie) => {
           expect(result).toEqual(mockMovie);
           expect(mockMovieRepository.findOne).toHaveBeenCalledWith({
             where: { id: 1 },
@@ -203,7 +219,9 @@ describe('MoviesService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -211,8 +229,10 @@ describe('MoviesService', () => {
       mockMovieRepository.findOne.mockResolvedValue(null);
 
       service.findOne$(999).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done.fail('Should have thrown NotFoundException');
+        },
+        error: (error: Error) => {
           expect(error).toBeInstanceOf(NotFoundException);
           done();
         },
@@ -225,7 +245,7 @@ describe('MoviesService', () => {
       mockMovieRepository.findOne.mockResolvedValue(mockMovie);
 
       service.findByTmdbId$(123).subscribe({
-        next: (result) => {
+        next: (result: Movie) => {
           expect(result).toEqual(mockMovie);
           expect(mockMovieRepository.findOne).toHaveBeenCalledWith({
             where: { tmdbId: 123 },
@@ -233,7 +253,9 @@ describe('MoviesService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
 
@@ -268,12 +290,14 @@ describe('MoviesService', () => {
       mockMovieRepository.save.mockResolvedValue(mockMovie);
 
       service.findByTmdbId$(123).subscribe({
-        next: (result) => {
+        next: (result: Movie) => {
           expect(result).toEqual(mockMovie);
           expect(mockTmdbService.getMovieDetails$).toHaveBeenCalledWith(123);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -287,12 +311,14 @@ describe('MoviesService', () => {
       mockMovieRepository.save.mockResolvedValue(updatedMovie);
 
       service.update$(1, updateDto).subscribe({
-        next: (result) => {
+        next: (result: Movie) => {
           expect(result.title).toBe('Updated Title');
           expect(mockMovieRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -307,7 +333,9 @@ describe('MoviesService', () => {
           expect(mockMovieRepository.remove).toHaveBeenCalledWith(mockMovie);
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -317,18 +345,26 @@ describe('MoviesService', () => {
       mockMovieRepository.findAndCount.mockResolvedValue([[mockMovie], 1]);
 
       service.search$('Test', 1, 20).subscribe({
-        next: (result) => {
+        next: (result: PaginatedResponseDto<Movie>) => {
           expect(result.data).toEqual([mockMovie]);
           expect(mockMovieRepository.findAndCount).toHaveBeenCalledWith(
             expect.objectContaining({
-              where: expect.objectContaining({ title: expect.anything() }),
+              where: expect.objectContaining({
+                title: expect.objectContaining({
+                  _type: 'ilike',
+                  _value: '%Test%',
+                }),
+              }),
               skip: 0,
               take: 20,
+              order: { popularity: 'DESC' },
             }),
           );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -338,7 +374,7 @@ describe('MoviesService', () => {
       mockMovieRepository.find.mockResolvedValue([mockMovie]);
 
       service.getTopRated$(10).subscribe({
-        next: (result) => {
+        next: (result: Movie[]) => {
           expect(result).toEqual([mockMovie]);
           expect(mockMovieRepository.find).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -351,7 +387,9 @@ describe('MoviesService', () => {
           );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -361,7 +399,7 @@ describe('MoviesService', () => {
       mockMovieRepository.find.mockResolvedValue([mockMovie]);
 
       service.getTrending$(10).subscribe({
-        next: (result) => {
+        next: (result: Movie[]) => {
           expect(result).toEqual([mockMovie]);
           expect(mockMovieRepository.find).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -371,7 +409,9 @@ describe('MoviesService', () => {
           );
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });
@@ -390,7 +430,7 @@ describe('MoviesService', () => {
         select: jest.fn().mockReturnThis(),
         addSelect: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue(mockStats),
-      };
+      } as unknown as SelectQueryBuilder<Movie>;
 
       mockMovieRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
       mockMovieRepository.update.mockResolvedValue({ affected: 1 });
@@ -401,7 +441,7 @@ describe('MoviesService', () => {
       });
 
       service.updateRatingStatistics$(1).subscribe({
-        next: (result) => {
+        next: (result: Movie) => {
           expect(result.userRatingAverage).toBe(8.5);
           expect(result.userRatingCount).toBe(10);
           expect(mockMovieRepository.update).toHaveBeenCalledWith(1, {
@@ -410,7 +450,9 @@ describe('MoviesService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err: Error) => {
+          done.fail(err.message);
+        },
       });
     });
   });

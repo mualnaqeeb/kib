@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+
 import { JwtService } from '@nestjs/jwt';
 import {
   ConflictException,
@@ -11,14 +11,13 @@ import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
 import { Movie } from '../entities/movie.entity';
 import { CreateUserDto, UpdateUserDto } from './dto';
-import { of, throwError } from 'rxjs';
-import * as bcrypt from 'bcrypt';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let userRepository: Repository<User>;
-  let movieRepository: Repository<Movie>;
-  let jwtService: JwtService;
+
+  // Create a mock function that we'll reuse
+  const mockValidatePassword = jest.fn();
+  const mockHashPassword = jest.fn();
 
   const mockUser: User = {
     id: 1,
@@ -33,8 +32,8 @@ describe('UsersService', () => {
     ratings: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    hashPassword: jest.fn(),
-    validatePassword: jest.fn(),
+    hashPassword: mockHashPassword,
+    validatePassword: mockValidatePassword,
   };
 
   const mockMovie: Movie = {
@@ -64,20 +63,20 @@ describe('UsersService', () => {
   };
 
   const mockUserRepository = {
-    create: jest.fn(),
-    save: jest.fn(),
-    findOne: jest.fn(),
-    find: jest.fn(),
-    remove: jest.fn(),
+    create: jest.fn<User, [CreateUserDto]>(),
+    save: jest.fn<Promise<User>, [User]>(),
+    findOne: jest.fn<Promise<User | null>, [any]>(),
+    find: jest.fn<Promise<User[]>, [any]>(),
+    remove: jest.fn<Promise<User>, [User]>(),
     createQueryBuilder: jest.fn(),
   };
 
   const mockMovieRepository = {
-    findOne: jest.fn(),
+    findOne: jest.fn<Promise<Movie | null>, [any]>(),
   };
 
   const mockJwtService = {
-    sign: jest.fn(),
+    sign: jest.fn<string, [any]>(),
   };
 
   beforeEach(async () => {
@@ -100,9 +99,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
-    movieRepository = module.get<Repository<Movie>>(getRepositoryToken(Movie));
-    jwtService = module.get<JwtService>(JwtService);
 
     jest.clearAllMocks();
   });
@@ -133,7 +129,9 @@ describe('UsersService', () => {
           expect(mockUserRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
@@ -149,10 +147,14 @@ describe('UsersService', () => {
         .mockResolvedValueOnce(null); // Email doesn't exist
 
       service.create$(createUserDto).subscribe({
-        next: () => done.fail('Should have thrown ConflictException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown ConflictException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(ConflictException);
-          expect(error.message).toBe('Username already exists');
+          expect((error as ConflictException).message).toBe(
+            'Username already exists',
+          );
           done();
         },
       });
@@ -170,10 +172,14 @@ describe('UsersService', () => {
         .mockResolvedValueOnce(mockUser); // Email exists
 
       service.create$(createUserDto).subscribe({
-        next: () => done.fail('Should have thrown ConflictException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown ConflictException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(ConflictException);
-          expect(error.message).toBe('Email already exists');
+          expect((error as ConflictException).message).toBe(
+            'Email already exists',
+          );
           done();
         },
       });
@@ -189,11 +195,21 @@ describe('UsersService', () => {
         next: (result) => {
           expect(result).toEqual(mockUsers);
           expect(mockUserRepository.find).toHaveBeenCalledWith({
-            select: ['id', 'username', 'email', 'firstName', 'lastName', 'isActive', 'createdAt'],
+            select: [
+              'id',
+              'username',
+              'email',
+              'firstName',
+              'lastName',
+              'isActive',
+              'createdAt',
+            ],
           });
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
   });
@@ -211,7 +227,9 @@ describe('UsersService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
@@ -219,8 +237,10 @@ describe('UsersService', () => {
       mockUserRepository.findOne.mockResolvedValue(null);
 
       service.findOne$(999).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown NotFoundException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(NotFoundException);
           done();
         },
@@ -246,7 +266,9 @@ describe('UsersService', () => {
           );
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
@@ -259,8 +281,10 @@ describe('UsersService', () => {
       mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       service.findByUsernameOrEmail$('nonexistent').subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown NotFoundException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(NotFoundException);
           done();
         },
@@ -287,7 +311,9 @@ describe('UsersService', () => {
           expect(mockUserRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
   });
@@ -302,7 +328,9 @@ describe('UsersService', () => {
           expect(mockUserRepository.remove).toHaveBeenCalledWith(mockUser);
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
   });
@@ -315,15 +343,17 @@ describe('UsersService', () => {
       };
 
       mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      mockUser.validatePassword.mockResolvedValue(true);
+      mockValidatePassword.mockResolvedValue(true);
 
       service.validateUser$('testuser', 'password').subscribe({
         next: (result) => {
           expect(result).toEqual(mockUser);
-          expect(mockUser.validatePassword).toHaveBeenCalledWith('password');
+          expect(mockValidatePassword).toHaveBeenCalledWith('password');
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
@@ -334,11 +364,13 @@ describe('UsersService', () => {
       };
 
       mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      mockUser.validatePassword.mockResolvedValue(false);
+      mockValidatePassword.mockResolvedValue(false);
 
       service.validateUser$('testuser', 'wrongpassword').subscribe({
-        next: () => done.fail('Should have thrown UnauthorizedException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown UnauthorizedException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(UnauthorizedException);
           done();
         },
@@ -352,9 +384,8 @@ describe('UsersService', () => {
         where: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(mockUser),
       };
-
       mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      mockUser.validatePassword.mockResolvedValue(true);
+      mockValidatePassword.mockResolvedValue(true);
       mockJwtService.sign.mockReturnValue('mock.jwt.token');
 
       service.login$('testuser', 'password').subscribe({
@@ -368,14 +399,16 @@ describe('UsersService', () => {
           });
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
   });
 
   describe('addToWatchlist$', () => {
     it('should add movie to watchlist', (done) => {
-      const userWithWatchlist = { ...mockUser, watchlist: [] };
+      const userWithWatchlist = { ...mockUser, watchlist: [] as Movie[] };
 
       mockUserRepository.findOne.mockResolvedValue(userWithWatchlist);
       mockMovieRepository.findOne.mockResolvedValue(mockMovie);
@@ -390,7 +423,9 @@ describe('UsersService', () => {
           expect(mockUserRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
@@ -405,7 +440,9 @@ describe('UsersService', () => {
           expect(result.watchlist.length).toBe(1);
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
@@ -414,8 +451,10 @@ describe('UsersService', () => {
       mockMovieRepository.findOne.mockResolvedValue(null);
 
       service.addToWatchlist$(1, 999).subscribe({
-        next: () => done.fail('Should have thrown NotFoundException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown NotFoundException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(NotFoundException);
           done();
         },
@@ -439,7 +478,9 @@ describe('UsersService', () => {
           expect(mockUserRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
   });
@@ -447,27 +488,31 @@ describe('UsersService', () => {
   describe('changePassword$', () => {
     it('should change user password', (done) => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
-      mockUser.validatePassword.mockResolvedValue(true);
+      mockValidatePassword.mockResolvedValue(true);
       mockUserRepository.save.mockResolvedValue(mockUser);
 
       service.changePassword$(1, 'oldPassword', 'newPassword').subscribe({
         next: (result) => {
           expect(result).toEqual(mockUser);
-          expect(mockUser.validatePassword).toHaveBeenCalledWith('oldPassword');
+          expect(mockValidatePassword).toHaveBeenCalledWith('oldPassword');
           expect(mockUserRepository.save).toHaveBeenCalled();
           done();
         },
-        error: done.fail,
+        error: (err) => {
+          done(err instanceof Error ? err : new Error(String(err)));
+        },
       });
     });
 
     it('should throw UnauthorizedException for incorrect old password', (done) => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
-      mockUser.validatePassword.mockResolvedValue(false);
+      mockValidatePassword.mockResolvedValue(false);
 
       service.changePassword$(1, 'wrongPassword', 'newPassword').subscribe({
-        next: () => done.fail('Should have thrown UnauthorizedException'),
-        error: (error) => {
+        next: () => {
+          done(new Error('Should have thrown UnauthorizedException'));
+        },
+        error: (error: unknown) => {
           expect(error).toBeInstanceOf(UnauthorizedException);
           done();
         },
